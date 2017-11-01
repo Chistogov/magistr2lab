@@ -10,15 +10,15 @@ import string
 
 class HtmlToLaTeX:    
         
-    def start(self):
-        input_query = "http://www.intuit.ru/studies/courses/564/420/info"#raw_input("Enter URL: ")
+    def __call__(self, site):
+        input_query = site
         pages = self.getLections(input_query)
         for t in pages:
             content = self.getLection("http://www.intuit.ru" + t)  
-            name = self.getLectionNmae("http://www.intuit.ru" + t)
+            name = self.getLectionName("http://www.intuit.ru" + t)
             self.saveLatex(name, content)
             
-    def getLectionNmae(self, URL): 
+    def getLectionName(self, URL): 
         raw = get(URL).text
         page = fromstring(raw)
         name = page.xpath('//*[@id="lecture-block"]/div[1]/div/div[1]/span/span/h1')                  
@@ -85,7 +85,7 @@ class HtmlToLaTeX:
         return "".join(result)
 
     
-    def tagsToLatex(self, html):
+    def tagsToLatex(self, html, parenttag = ""):
         result = []
         if html.text:
             s = string.replace(html.text, '#', '\\#')
@@ -93,9 +93,11 @@ class HtmlToLaTeX:
             s = string.replace(s, '%', '\\%')
             s = string.replace(s, '&', '\\&')
             s = string.replace(s, '_', '\\_')
-            s = string.replace(s, '{', '\\{')
-            s = string.replace(s, '}', '\\}')
             result.append(s)
+            if parenttag != "pre":
+                j = string.replace(html.text, '{', '\\{')
+                j = string.replace(j, '}', '\\}')
+                result.append(j)
         for f in html:
             if f.tag in ["body"]:                
                 result.append(self.tagsToLatex(f))
@@ -116,7 +118,7 @@ class HtmlToLaTeX:
             elif f.tag in ["li"]:
                 result.append('\\item{%s}' % self.tagsToLatex(f)) 
             elif f.tag in ["pre"]:
-                result.append('\\begin{spverbatim}' + self.tagsToLatex(f) + '\\end{spverbatim}')
+                result.append('\\begin{spverbatim}' + self.tagsToLatex(f, "pre") + '\\end{spverbatim}')
             elif f.tag in ["table" or "tbody"]:
                 s = ("<table>%s</table>" % self.preparetable(f)) 
                 markup = lxml.html.fromstring(s)
@@ -194,9 +196,10 @@ class HtmlToLaTeX:
         
     def arrayToTexTeable(self, array):
         result = []
+        rows = ("%s|" % ("|C" * max([len(x) for x in array])))
         result.append("\\begin{table}[!ht] \
 \\setlength\\extrarowheight{2pt} \
-\\begin{tabularx}{\\textwidth}{|C|C|C|C|C|C|C|} \\hline")
+\\begin{tabularx}{\\textwidth}{" + rows + "} \\hline")
         for g in array:
             if len(g)>1:
                 for h in g:
@@ -225,5 +228,4 @@ class HtmlToLaTeX:
                 out.write(content.encode("utf-8"))   
             
 if __name__ == "__main__":
-    program = HtmlToLaTeX()
-    program.start()
+    program = HtmlToLaTeX()("http://www.intuit.ru/studies/courses/564/420/info")
